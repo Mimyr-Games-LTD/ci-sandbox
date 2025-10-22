@@ -1,4 +1,4 @@
-name: Build Godot
+name: "godot-ci windows export"
 
 on:
   workflow_dispatch:
@@ -7,104 +7,120 @@ on:
         description: "Release version (e.g. 0.1.0)"
         required: true
         default: "test"
-      debug_build:
-        description: "Debug build?"
-        required: true
-        type: choice
-        options: ["false", "true"]
-        default: "false"
       export_name:
-        description: "Output name (without extension)"
+        description: "Output name (without .exe)"
         required: true
-        default: "the_vow"
-      preset_name:
-        description: "Godot export preset"
+        default: "test-project"
+      project_path:
+        description: "Path to folder with project.godot ('.' if root)"
         required: true
-        type: choice
-        options: ["windows", "linux"]
-        default: "windows"
+        default: "test-project"
 
 permissions:
   contents: write
   packages: read
 
+env:
+  GODOT_VERSION: "4.3"          # образ barichello/godot-ci:4.3
+  EXPORT_NAME: ${{ inputs.export_name }}
+  PROJECT_PATH: ${{ inputs.project_path }}
+
 jobs:
-  export:
+  export-windows:
+    name: Windows Export + Tag + Release
     runs-on: ubuntu-24.04
     container:
-      # Используем твой образ, где уже есть Godot + templates + rcedit + wine
-      image: ghcr.io/mimyr-games-ltd/ci-sandbox:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      HOME: /github/home
-      GODOT_VERSION: "4.4.1"
-      GODOT_CHANNEL: "stable"
-      EXPORT_NAME: ${{ inputs.export_name }}
-      PRESET_NAME: ${{ inputs.preset_name }}
-      DEBUG_BUILD: ${{ inputs.debug_build }}
-
+      image: barichello/godot-ci:4.3
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
-      # === единственное, что нужно: скопировать templates и настройки в правильный HOME ===
-      - name: Sync Godot templates and settings to $HOME
+      - name: Prepare Godot templates & settings for $HOME
         shell: bash
         run: |
           set -eux
-          ROOT_DIR="/root/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}"
-          HOME_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}"
-          mkdir -p "$(dirname "$HOME_DIR")"
-          if [ -d "$ROOT_DIR" ]; then
-            echo "Copying export templates from $ROOT_DIR → $HOME_DIR"
-            rsync -a "$ROOT_DIR/" "$HOME_DIR/"
+          # Перекладываем export templates из /root → $HOME (как в твоём шаблоне)
+          mkdir -p ~/.local/share/godot/export_templates/
+          mkdir -p ~/.config/
+          # Если godot уже создал каталог конфигов в /root — переносим
+          if [ -d /root/.config/godot ]; then
+            mv /root/.config/godot ~/.config/godot
           else
-            echo "⚠️ WARNING: No export templates found under $ROOT_DIR"
-            ls -R /root/.local/share/godot || true
+            mkdir -p ~/.config/godot
+          fi
+          # templates
+          if [ -d "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" ]; then
+            mv "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" \
+               "~/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          else
+            echo "⚠️ No templates under /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+            ls -laR /root/.local/share/godot || true
           fi
 
-          # переносим editor_settings, если они лежат в /root/.config/godot
-          mkdir -p "$HOME/.config/godot"
-          if [ -f "/root/.config/godot/editor_settings-4.tres" ]; then
-            cp "/root/.config/godot/editor_settings-4.tres" "$HOME/.config/godot/editor_settings-4.tres"
-          fi
+          echo "== After move =="
+          ls -la "~/.local/share/godot/export_templates/${GODOT_VERSION}.stable" || true
 
-          echo "Templates now under:"
-          ls -la "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}" || true
-          echo "Editor Settings:"
-          cat "$HOME/.config/godot/editor_settings-4.tres" || true
-
-      - name: Export build
+      - name: Install wine + rcedit; write Editor Settings (Windows section)
         shell: bash
-        env:
-          PROJECT_PATH: ${{ github.workspace }}
         run: |
-          set -euo pipefail
-          mkdir -p "build/${PRESET_NAME}"
-          EXPORT_DIR="$(realpath build)"
-          MODE=$([ "${DEBUG_BUILD}" = "true" ] && echo debug || echo release)
+          set -eux
+          apt-get update
+          apt-get install -y --no-install-recommends wine64 wget ca-certificates
+          mkdir -p /opt/rcedit
+          wget -O /opt/rcedit/rcedit-x64.exe \
+            "https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe"
 
-          OUT_PATH="${EXPORT_DIR}/${PRESET_NAME}/${EXPORT_NAME}"
-          if [ "${PRESET_NAME}" = "windows" ]; then OUT_PATH="${OUT_PATH}.exe"; fi
+          # Godot 4.3 хранит настройки в editor_settings-4.3.tres
+          ES="$HOME/.config/godot/editor_settings-4.3.tres"
+          if [ ! -f "$ES" ]; then
+            echo '[gd_resource type="EditorSettings" format=3]' > "$ES"
+            echo '' >> "$ES"
+            echo '[resource]' >> "$ES"
+          fi
 
+          # Прописываем wine + rcedit (перезаписывая существующие строки, если были)
+          # Удалим старые ключи, если есть
+          sed -i '/^export\/windows\/rcedit *=/d' "$ES" || true
+          sed -i '/^export\/windows\/wine *=/d' "$ES" || true
+          # Добавим наши
+          if command -v wine64 >/dev/null 2>&1; then
+            echo 'export/windows/wine="/usr/bin/wine64"' >> "$ES"
+          else
+            echo 'export/windows/wine="/usr/bin/wine"' >> "$ES"
+          fi
+          echo 'export/windows/rcedit="/opt/rcedit/rcedit-x64.exe"' >> "$ES"
+
+          echo "== Editor Settings =="
+          cat "$ES"
+
+          echo "== Check templates =="
+          ls -la "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable" || true
+
+      - name: Windows Build
+        shell: bash
+        run: |
+          set -eux
+          mkdir -p build/windows
+          EXPORT_DIR="$(readlink -f build)"
+          cd "$PROJECT_PATH"
+
+          # В preset'ах barichello-образа имя Windows-пресета обычно "Windows Desktop"
           godot --headless --verbose \
-            --path "${PROJECT_PATH}" \
-            --export-"${MODE}" "${PRESET_NAME}" \
-            "${OUT_PATH}" \
-            --ci
+            --export-release "Windows Desktop" \
+            "$EXPORT_DIR/windows/${EXPORT_NAME}.exe"
 
-          cd "build/${PRESET_NAME}"
-          ZIP_NAME="../build_${{ inputs.version }}_${PRESET_NAME}.zip"
-          zip -r "${ZIP_NAME}" .
+          # Упаковываем весь каталог windows (exe + pck + dll и т.п.)
+          cd "$EXPORT_DIR/windows"
+          zip -r "../build_${{ inputs.version }}_windows.zip" .
           cd - >/dev/null
 
-      - name: Upload artifact (zip)
+      - name: Upload Artifact (zip)
         uses: actions/upload-artifact@v4
         with:
-          name: build_${{ inputs.version }}_${{ inputs.preset_name }}
-          path: build/build_${{ inputs.version }}_${{ inputs.preset_name }}.zip
+          name: build_${{ inputs.version }}_windows
+          path: build/build_${{ inputs.version }}_windows.zip
           if-no-files-found: error
           compression-level: 6
 
@@ -114,32 +130,28 @@ jobs:
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Decide tag name
-        run: |
-          if [ "${{ inputs.debug_build }}" = "true" ]; then
-            echo "tag_name=pre-${{ inputs.version }}" >> $GITHUB_ENV
-          else
-            echo "tag_name=${{ inputs.version }}" >> $GITHUB_ENV
-          fi
-
-      - name: Create and push tag
+      - name: Create and push tag (idempotent)
         working-directory: ${{ github.workspace }}
+        shell: bash
         run: |
-          git tag -d "${{ env.tag_name }}" 2>/dev/null || true
-          git fetch --tags
-          if git rev-parse "${{ env.tag_name }}" >/dev/null 2>&1; then
-            git push --delete origin "${{ env.tag_name }}" || true
+          set -eux
+          TAG="${{ inputs.version }}"
+          git tag -d "$TAG" 2>/dev/null || true
+          git fetch --tags --force
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            git push --delete origin "$TAG" || true
           fi
-          git tag "${{ env.tag_name }}"
-          git push origin "${{ env.tag_name }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+          echo "tag_name=$TAG" >> $GITHUB_ENV
 
       - name: Create Release and Upload
         uses: softprops/action-gh-release@v2
         with:
-          files: build/build_${{ env.tag_name }}_${{ inputs.preset_name }}.zip
+          files: build/build_${{ env.tag_name }}_windows.zip
           tag_name: ${{ env.tag_name }}
           name: Release ${{ env.tag_name }}
           draft: false
-          prerelease: ${{ inputs.debug_build }}
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
