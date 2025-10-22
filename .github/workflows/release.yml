@@ -44,38 +44,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download official headless Godot 4.4.1 (with fallbacks)
-        shell: bash
-        run: |
-          set -eux
-          VER="4.4.1"
-          TUXFAM="https://downloads.tuxfamily.org/godotengine/${VER}/Godot_v${VER}-stable_linux.x86_64.zip"
-          GHREL="https://github.com/godotengine/godot/releases/download/${VER}-stable/Godot_v${VER}-stable_linux.x86_64.zip"
-          SMART="https://downloads.godotengine.org/?version=${VER}&flavor=stable&slug=linux.x86_64.zip&platform=linux.64"
-          
-          tmpdir="$(mktemp -d)"
-          cd "$tmpdir"
-          
-          # пробуем по очереди, сохраняя имя из Content-Disposition (-J)
-          for url in "$GHREL" "$SMART" "$TUXFAM"; do
-          echo "Trying: $url"
-          if curl -fLJO "$url"; then
-           echo "Downloaded from: $url"
-           break
-          fi
-          done
-          
-          # берём первый .zip в папке
-          ZIP="$(ls -1 *.zip | head -n1)"
-          [ -n "$ZIP" ] || { echo "No zip downloaded"; exit 1; }
-          unzip -q "$ZIP"
-          
-          # находим бинарь внутри архива и ставим его
-          BIN="$(find . -maxdepth 2 -type f -name 'Godot_v*linux.x86_64' | head -n1)"
-          [ -n "$BIN" ] || { echo "Godot binary not found in zip"; exit 1; }
-          install -m 0755 "$BIN" /usr/local/bin/godot-official
-          
-          /usr/local/bin/godot-official --version
+#      - name: Download official headless Godot 4.4.1 (with fallbacks)
+#        shell: bash
+#        run: |
+#          set -eux
+#          VER="4.4.1"
+#          TUXFAM="https://downloads.tuxfamily.org/godotengine/${VER}/Godot_v${VER}-stable_linux.x86_64.zip"
+#          GHREL="https://github.com/godotengine/godot/releases/download/${VER}-stable/Godot_v${VER}-stable_linux.x86_64.zip"
+#          SMART="https://downloads.godotengine.org/?version=${VER}&flavor=stable&slug=linux.x86_64.zip&platform=linux.64"
+#          
+#          tmpdir="$(mktemp -d)"
+#          cd "$tmpdir"
+#          
+#          # пробуем по очереди, сохраняя имя из Content-Disposition (-J)
+#          for url in "$GHREL" "$SMART" "$TUXFAM"; do
+#          echo "Trying: $url"
+#          if curl -fLJO "$url"; then
+#           echo "Downloaded from: $url"
+#           break
+#          fi
+#          done
+#          
+#          # берём первый .zip в папке
+#          ZIP="$(ls -1 *.zip | head -n1)"
+#          [ -n "$ZIP" ] || { echo "No zip downloaded"; exit 1; }
+#          unzip -q "$ZIP"
+#          
+#          # находим бинарь внутри архива и ставим его
+#          BIN="$(find . -maxdepth 2 -type f -name 'Godot_v*linux.x86_64' | head -n1)"
+#          [ -n "$BIN" ] || { echo "Godot binary not found in zip"; exit 1; }
+#          install -m 0755 "$BIN" /usr/local/bin/godot-official
+#          
+#          /usr/local/bin/godot-official --version
 
 #      - name: Import project
 #        shell: bash
@@ -104,7 +104,7 @@ jobs:
             
             # Запускаем и сохраняем вывод; если команда упала, фиксируем код
             LOG="$(mktemp)"
-            if ! godot-official --headless --verbose \
+            if ! godot --headless --verbose \
                   --path "$PROJECT_PATH" \
                   --export-"$MODE" "$PRESET_NAME" \
                   "$EXPORT_DIR/${PRESET_NAME}/${EXPORT_NAME}.exe" - --ci 2>&1 | tee "$LOG"; then
