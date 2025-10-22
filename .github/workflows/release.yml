@@ -41,26 +41,26 @@ jobs:
         shell: bash
         run: |
           set -eux
-          # Перекладываем export templates из /root → $HOME (как в твоём шаблоне)
-          mkdir -p ~/.local/share/godot/export_templates/
-          mkdir -p ~/.config/
-          # Если godot уже создал каталог конфигов в /root — переносим
+          HOME_DIR="$HOME"
+          mkdir -p "$HOME_DIR/.local/share/godot/export_templates/"
+          mkdir -p "$HOME_DIR/.config/"
+          
           if [ -d /root/.config/godot ]; then
-            mv /root/.config/godot ~/.config/godot
+            mv /root/.config/godot "$HOME_DIR/.config/godot"
           else
-            mkdir -p ~/.config/godot
+            mkdir -p "$HOME_DIR/.config/godot"
           fi
-          # templates
+          
           if [ -d "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" ]; then
             mv "/root/.local/share/godot/export_templates/${GODOT_VERSION}.stable" \
-               "~/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+               "$HOME_DIR/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
           else
-            echo "⚠️ No templates under /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+            echo "⚠️ No templates found under /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
             ls -laR /root/.local/share/godot || true
           fi
-
+          
           echo "== After move =="
-          ls -la "~/.local/share/godot/export_templates/${GODOT_VERSION}.stable" || true
+          ls -la "$HOME_DIR/.local/share/godot/export_templates/${GODOT_VERSION}.stable" || true
 
       - name: Install wine + rcedit; write Editor Settings (Windows section)
         shell: bash
