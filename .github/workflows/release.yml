@@ -108,7 +108,7 @@ jobs:
 
           # В preset'ах barichello-образа имя Windows-пресета обычно "Windows Desktop"
           godot --headless --verbose \
-            --export-release "Windows Desktop" \
+            --export-release "windows" \
             "$EXPORT_DIR/windows/${EXPORT_NAME}.exe"
 
           # Упаковываем весь каталог windows (exe + pck + dll и т.п.)
