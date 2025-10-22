@@ -4,165 +4,117 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "The version for the build"
+        description: "Release version (e.g. 0.1.0)"
         required: true
-        default: 'test'
+        default: "test"
       debug_build:
-        description: "Whether to build in debug mode"
+        description: "Debug build?"
         required: true
         type: choice
-        options: ['true','false']
-        default: 'false'
+        options: ["false", "true"]
+        default: "false"
       export_name:
-        description: exe name
-        required: false
-        default: the_vow
+        description: "Output name (without extension)"
+        required: true
+        default: "the_vow"
       preset_name:
-        description: Godot export preset
+        description: "Godot export preset"
         required: true
         type: choice
-        options: ['windows','linux']
-        default: 'windows'
+        options: ["windows", "linux"]
+        default: "windows"
 
 permissions:
-  packages: read
   contents: write
-  
+  packages: read
+
 jobs:
   export:
     runs-on: ubuntu-24.04
     container:
+      # Используем твой образ, где уже есть Godot + templates + rcedit + wine
       image: ghcr.io/mimyr-games-ltd/ci-sandbox:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     env:
+      HOME: /github/home
+      GODOT_VERSION: "4.4.1"
+      GODOT_CHANNEL: "stable"
       EXPORT_NAME: ${{ inputs.export_name }}
-      PRESET_NAME: ${{ inputs.preset_name }} 
+      PRESET_NAME: ${{ inputs.preset_name }}
       DEBUG_BUILD: ${{ inputs.debug_build }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Ensure Godot HOME matches Actions HOME
+      # === единственное, что нужно: скопировать templates и настройки в правильный HOME ===
+      - name: Sync Godot templates and settings to $HOME
         shell: bash
         run: |
           set -eux
-          # В CI HOME обычно /github/home; дублируем туда, если ставили в /root
-          export CIHOME="${HOME:-/github/home}"
-          mkdir -p "$CIHOME/.local/share/godot/export_templates/4.4.1.stable"
-          if [ -d /root/.local/share/godot/export_templates/4.4.1.stable ]; then
-            rsync -a /root/.local/share/godot/export_templates/4.4.1.stable/ \
-                    "$CIHOME/.local/share/godot/export_templates/4.4.1.stable/"
+          ROOT_DIR="/root/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}"
+          HOME_DIR="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}"
+          mkdir -p "$(dirname "$HOME_DIR")"
+          if [ -d "$ROOT_DIR" ]; then
+            echo "Copying export templates from $ROOT_DIR → $HOME_DIR"
+            rsync -a "$ROOT_DIR/" "$HOME_DIR/"
+          else
+            echo "⚠️ WARNING: No export templates found under $ROOT_DIR"
+            ls -R /root/.local/share/godot || true
           fi
 
-      - name: Write editor_settings-4.tres in $HOME
+          # переносим editor_settings, если они лежат в /root/.config/godot
+          mkdir -p "$HOME/.config/godot"
+          if [ -f "/root/.config/godot/editor_settings-4.tres" ]; then
+            cp "/root/.config/godot/editor_settings-4.tres" "$HOME/.config/godot/editor_settings-4.tres"
+          fi
+
+          echo "Templates now under:"
+          ls -la "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_CHANNEL}" || true
+          echo "Editor Settings:"
+          cat "$HOME/.config/godot/editor_settings-4.tres" || true
+
+      - name: Export build
         shell: bash
-        run: |
-          set -eux
-          export CIHOME="${HOME:-/github/home}"
-          mkdir -p "$CIHOME/.config/godot"
-          cat > "$CIHOME/.config/godot/editor_settings-4.tres" <<'EOF'
-          [gd_resource type="EditorSettings" format=3]
-
-          [resource]
-          export/windows/rcedit="/opt/rcedit/rcedit-x64.exe"
-          export/windows/wine="/usr/bin/wine64"
-          EOF
-          cat "$CIHOME/.config/godot/editor_settings-4.tres"
-          # На всякий случай покажем, что файлы шаблонов на месте
-          ls -la "$CIHOME/.local/share/godot/export_templates/4.4.1.stable" || true
-
-#      - name: Download official headless Godot 4.4.1 (with fallbacks)
-#        shell: bash
-#        run: |
-#          set -eux
-#          VER="4.4.1"
-#          TUXFAM="https://downloads.tuxfamily.org/godotengine/${VER}/Godot_v${VER}-stable_linux.x86_64.zip"
-#          GHREL="https://github.com/godotengine/godot/releases/download/${VER}-stable/Godot_v${VER}-stable_linux.x86_64.zip"
-#          SMART="https://downloads.godotengine.org/?version=${VER}&flavor=stable&slug=linux.x86_64.zip&platform=linux.64"
-#          
-#          tmpdir="$(mktemp -d)"
-#          cd "$tmpdir"
-#          
-#          # пробуем по очереди, сохраняя имя из Content-Disposition (-J)
-#          for url in "$GHREL" "$SMART" "$TUXFAM"; do
-#          echo "Trying: $url"
-#          if curl -fLJO "$url"; then
-#           echo "Downloaded from: $url"
-#           break
-#          fi
-#          done
-#          
-#          # берём первый .zip в папке
-#          ZIP="$(ls -1 *.zip | head -n1)"
-#          [ -n "$ZIP" ] || { echo "No zip downloaded"; exit 1; }
-#          unzip -q "$ZIP"
-#          
-#          # находим бинарь внутри архива и ставим его
-#          BIN="$(find . -maxdepth 2 -type f -name 'Godot_v*linux.x86_64' | head -n1)"
-#          [ -n "$BIN" ] || { echo "Godot binary not found in zip"; exit 1; }
-#          install -m 0755 "$BIN" /usr/local/bin/godot-official
-#          
-#          /usr/local/bin/godot-official --version
-
-#      - name: Import project
-#        shell: bash
-#        run: .github/scripts/godot_import.sh
-#
-#      - name: Open project
-#        shell: bash
-#        run: .github/scripts/run_godot_safe.sh --headless --path "$GITHUB_WORKSPACE" --verbose --editor --quit 
-          
-      - name: Export build with retries
-        uses: nick-fields/retry@v3
         env:
           PROJECT_PATH: ${{ github.workspace }}
-          PRESET_NAME: ${{ env.PRESET_NAME }}
-          EXPORT_NAME: ${{ env.EXPORT_NAME }}
-          DEBUG_BUILD: ${{ env.DEBUG_BUILD }}
-        with:
-          max_attempts: 3
-          timeout_minutes: 10
-          shell: bash
-          command: |
-            set -euo pipefail
-            mkdir -p "build/${PRESET_NAME}"
-            EXPORT_DIR="$(realpath build)"
-            MODE=$([ "$DEBUG_BUILD" = "true" ] && echo debug || echo release)
-            
-            # Запускаем и сохраняем вывод; если команда упала, фиксируем код
-            LOG="$(mktemp)"
-            if ! godot --headless --verbose \
-                  --path "$PROJECT_PATH" \
-                  --export-"$MODE" "$PRESET_NAME" \
-                  "$EXPORT_DIR/${PRESET_NAME}/${EXPORT_NAME}.exe" - --ci 2>&1 | tee "$LOG"; then
-              STATUS=$?
-            else
-              STATUS=0
-            fi
-            
-            # Если в логе есть “Program crashed”, принудительно валим шаг ненулевым кодом
-            if grep -q "Program crashed with signal" "$LOG"; then
-              echo "Detected crash in Godot. Forcing non-zero exit so retry can kick in."
-              exit 139
-            fi
-            exit "$STATUS"
+        run: |
+          set -euo pipefail
+          mkdir -p "build/${PRESET_NAME}"
+          EXPORT_DIR="$(realpath build)"
+          MODE=$([ "${DEBUG_BUILD}" = "true" ] && echo debug || echo release)
 
+          OUT_PATH="${EXPORT_DIR}/${PRESET_NAME}/${EXPORT_NAME}"
+          if [ "${PRESET_NAME}" = "windows" ]; then OUT_PATH="${OUT_PATH}.exe"; fi
 
-      - name: Upload artifact
+          godot --headless --verbose \
+            --path "${PROJECT_PATH}" \
+            --export-"${MODE}" "${PRESET_NAME}" \
+            "${OUT_PATH}" \
+            --ci
+
+          cd "build/${PRESET_NAME}"
+          ZIP_NAME="../build_${{ inputs.version }}_${PRESET_NAME}.zip"
+          zip -r "${ZIP_NAME}" .
+          cd - >/dev/null
+
+      - name: Upload artifact (zip)
         uses: actions/upload-artifact@v4
         with:
           name: build_${{ inputs.version }}_${{ inputs.preset_name }}
-          path: build/${{ inputs.preset_name }}/*
+          path: build/build_${{ inputs.version }}_${{ inputs.preset_name }}.zip
+          if-no-files-found: error
+          compression-level: 6
 
-      - name: Configure Git (for tagging)
+      - name: Configure Git
+        working-directory: ${{ github.workspace }}
         run: |
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Set Version Tag
-        shell: bash
+      - name: Decide tag name
         run: |
           if [ "${{ inputs.debug_build }}" = "true" ]; then
             echo "tag_name=pre-${{ inputs.version }}" >> $GITHUB_ENV
@@ -170,20 +122,21 @@ jobs:
             echo "tag_name=${{ inputs.version }}" >> $GITHUB_ENV
           fi
 
-      - name: Create Git Tag
+      - name: Create and push tag
+        working-directory: ${{ github.workspace }}
         run: |
+          git tag -d "${{ env.tag_name }}" 2>/dev/null || true
+          git fetch --tags
+          if git rev-parse "${{ env.tag_name }}" >/dev/null 2>&1; then
+            git push --delete origin "${{ env.tag_name }}" || true
+          fi
           git tag "${{ env.tag_name }}"
           git push origin "${{ env.tag_name }}"
-
-      - name: Zip artifact for release
-        run: |
-          cd build/${{ inputs.preset_name }}
-          zip -r "../../build_${{ env.tag_name }}_${{ inputs.preset_name }}.zip" .
 
       - name: Create Release and Upload
         uses: softprops/action-gh-release@v2
         with:
-          files: build_${{ env.tag_name }}_${{ inputs.preset_name }}.zip
+          files: build/build_${{ env.tag_name }}_${{ inputs.preset_name }}.zip
           tag_name: ${{ env.tag_name }}
           name: Release ${{ env.tag_name }}
           draft: false
