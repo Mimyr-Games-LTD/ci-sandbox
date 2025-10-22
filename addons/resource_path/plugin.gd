@@ -1,0 +1,20 @@
+@tool
+extends EditorPlugin
+
+const ResourcePathInspectorPlugin := preload("res://addons/resource_path/editor_inspector_plugin.gd")
+
+var _inspector: ResourcePathInspectorPlugin
+
+
+func _enter_tree() -> void:
+	if CiFlags.is_enabled():
+		return
+	
+	_inspector = ResourcePathInspectorPlugin.new()
+	add_inspector_plugin(_inspector)
+
+
+func _exit_tree() -> void:
+	if _inspector == null:
+		return
+	remove_inspector_plugin(_inspector)

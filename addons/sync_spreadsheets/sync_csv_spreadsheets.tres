@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="SheetsResource" load_steps=4 format=3 uid="uid://qnfocsxibsgf"]
+
+[ext_resource type="Script" uid="uid://dqw6pfxjcfkw4" path="res://addons/sync_spreadsheets/files/sheets_resource.gd" id="1_7jp5s"]
+[ext_resource type="Script" uid="uid://b11xgw7mfrxkm" path="res://addons/sync_spreadsheets/files/sheet_resource.gd" id="2_pktct"]
+
+[sub_resource type="Resource" id="Resource_aqvej"]
+script = ExtResource("2_pktct")
+csv_path = "res:///localization/localization_main.csv"
+sheet_id = "1ynu2j-A0X01WVIq_Y__jnNgmHrydHPc8kcyA-KB2iUY"
+sheet_name = "Main"
+sheet_gid = "0"
+update_on_auto_sync = true
+
+[resource]
+script = ExtResource("1_7jp5s")
+sheets = Array[ExtResource("2_pktct")]([SubResource("Resource_aqvej")])
