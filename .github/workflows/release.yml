@@ -6,6 +6,7 @@ on:
       version:
         description: "The version for the build"
         required: true
+        default: 'test'
       debug_build:
         description: "Whether to build in debug mode"
         required: true
@@ -31,7 +32,7 @@ jobs:
   export:
     runs-on: ubuntu-24.04
     container:
-      image: ghcr.io/mimyr-games-ltd/cardengine:latest
+      image: ghcr.io/mimyr-games-ltd/ci-sandbox:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
