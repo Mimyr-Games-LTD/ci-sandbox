@@ -117,3 +117,13 @@ RUN test -f "/root/.local/share/godot/export_templates/${GODOT_VERSION}.${RELEAS
  && test -f "/github/home/.local/share/godot/export_templates/${GODOT_VERSION}.${RELEASE_NAME}/windows_debug_x86_64.exe" \
  && test -f "/github/home/.local/share/godot/export_templates/${GODOT_VERSION}.${RELEASE_NAME}/windows_release_x86_64.exe" \
  && echo "Windows export templates OK under both /root and /github/home"
+
+
+RUN curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh \
+  | sh -s -- -b /usr/local/bin
+
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+
+ARG REQUIREMENTS_TMP_PATH="/tmp/requirements.txt"
+COPY requirements.txt "${REQUIREMENTS_TMP_PATH}"
+RUN pip install --no-cache-dir -r "${REQUIREMENTS_TMP_PATH}"
