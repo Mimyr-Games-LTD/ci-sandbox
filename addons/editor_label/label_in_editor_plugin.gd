@@ -5,8 +5,7 @@ var _instance: LabelInEditorInspectorPlugin
 
 
 func _enter_tree() -> void:
-	if CiFlags.is_enabled():
-		return
+
 	
 	_instance = LabelInEditorInspectorPlugin.new()
 	add_inspector_plugin(_instance)

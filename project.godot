@@ -13,3 +13,13 @@ config_version=5
 config/name="test"
 run/main_scene="uid://clew48uhmwa0j"
 config/features=PackedStringArray("4.4", "Forward Plus")
+
+[autoload]
+
+DialogueManager="*res://addons/dialogue_manager/dialogue_manager.gd"
+GDRx="*res://addons/reactivex/__gdrxsingleton__.gd"
+Talo="*res://addons/talo/talo_manager.gd"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/dialogue_manager/plugin.cfg", "res://addons/editor_label/plugin.cfg", "res://addons/gut/plugin.cfg", "res://addons/id_picker/plugin.cfg", "res://addons/minos_uuid_generator/plugin.cfg", "res://addons/reactivex/plugin.cfg", "res://addons/resource_path/plugin.cfg", "res://addons/sync_spreadsheets/plugin.cfg", "res://addons/talo/plugin.cfg")

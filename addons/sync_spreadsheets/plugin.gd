@@ -6,8 +6,6 @@ const SyncScene = preload("res://addons/sync_spreadsheets/files/sync.tscn")
 var sync_instance
 
 func _enter_tree():
-	if CiFlags.is_enabled():
-		return
 	
 	sync_instance = SyncScene.instantiate()
 	add_control_to_bottom_panel(sync_instance, "Sync CSV Spreadsheets", Shortcut.new())

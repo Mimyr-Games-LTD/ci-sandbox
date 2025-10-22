@@ -7,8 +7,6 @@ var _inspector: ResourcePathInspectorPlugin
 
 
 func _enter_tree() -> void:
-	if CiFlags.is_enabled():
-		return
 	
 	_inspector = ResourcePathInspectorPlugin.new()
 	add_inspector_plugin(_inspector)

@@ -5,8 +5,6 @@ var _instance: IdPickerInspectorPlugin
 
 
 func _enter_tree() -> void:
-	if CiFlags.is_enabled():
-		return
 	
 	_instance = IdPickerInspectorPlugin.new()
 	add_inspector_plugin(_instance)
