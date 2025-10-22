@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://clew48uhmwa0j"]
+
+[node name="Node2D" type="Node2D"]
+
+[node name="Label" type="Label" parent="."]
+offset_left = 272.0
+offset_top = 157.0
+offset_right = 1099.0
+offset_bottom = 499.0
+text = "hello world"
