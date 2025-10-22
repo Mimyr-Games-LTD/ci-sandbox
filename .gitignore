@@ -1,0 +1,28 @@
+*.tmp
+
+
+
+# Rider
+.idea
+.vscode
+.vscode/settings.json
+
+
+# Godot-specific ignores
+.import/
+export.cfg
+
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+
+# library specific
+/addons/gdUnit4/tmp-update/
+/.claude/settings.local.json
+test_results.xml
