@@ -1,0 +1,4 @@
+battleground/tiles/water/animations/*
+battleground/tiles/battleground_water_tile_view_set_data.tres
+localization/localization_main.csv
+localization/localization_main.csv.import

@@ -1,0 +1,38 @@
+---
+name: Build Docker Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set lowercase image name using basename
+        id: meta
+        run: |
+          owner_lower=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          repo_lower=$(basename "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          image_name="ghcr.io/${owner_lower}/${repo_lower}:latest"
+          echo "IMAGE_NAME=$image_name" >> "$GITHUB_OUTPUT"
+
+      - name: Build image
+        run: docker build -t ${{ steps.meta.outputs.IMAGE_NAME }} .
+
+      - name: Push image
+        run: docker push ${{ steps.meta.outputs.IMAGE_NAME }}

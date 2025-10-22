@@ -1,0 +1,16 @@
+runner:
+  reimport-full:
+    cmd: |
+      python3 .github/scripts/get_filtered_diff.py
+      exit 0
+    errorformat:
+      - "%f:%l:%c: %m"
+    level: error
+  empty-arrays:
+    cmd: |
+      BASE=$(git merge-base HEAD origin/main)
+      python3 .github/scripts/check_empty_arrays.py "$BASE" --staged 
+      exit 0
+    errorformat:
+      - "%f:%l:%c: %m"
+    level: warning
