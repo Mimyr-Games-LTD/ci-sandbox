@@ -44,6 +44,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure Godot HOME matches Actions HOME
+        shell: bash
+        run: |
+          set -eux
+          # В CI HOME обычно /github/home; дублируем туда, если ставили в /root
+          export CIHOME="${HOME:-/github/home}"
+          mkdir -p "$CIHOME/.local/share/godot/export_templates/4.4.1.stable"
+          if [ -d /root/.local/share/godot/export_templates/4.4.1.stable ]; then
+            rsync -a /root/.local/share/godot/export_templates/4.4.1.stable/ \
+                    "$CIHOME/.local/share/godot/export_templates/4.4.1.stable/"
+          fi
+
+      - name: Write editor_settings-4.tres in $HOME
+        shell: bash
+        run: |
+          set -eux
+          export CIHOME="${HOME:-/github/home}"
+          mkdir -p "$CIHOME/.config/godot"
+          cat > "$CIHOME/.config/godot/editor_settings-4.tres" <<'EOF'
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/windows/rcedit="/opt/rcedit/rcedit-x64.exe"
+          export/windows/wine="/usr/bin/wine64"
+          EOF
+          cat "$CIHOME/.config/godot/editor_settings-4.tres"
+          # На всякий случай покажем, что файлы шаблонов на месте
+          ls -la "$CIHOME/.local/share/godot/export_templates/4.4.1.stable" || true
+
 #      - name: Download official headless Godot 4.4.1 (with fallbacks)
 #        shell: bash
 #        run: |
