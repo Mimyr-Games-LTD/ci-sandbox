@@ -65,12 +65,6 @@ RUN set -eux; \
     mkdir -p /opt/rcedit; \
     wget -O /opt/rcedit/rcedit-x64.exe https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe
 
-# ---- Butler (как в шаблоне) ----
-ADD getbutler.sh /opt/butler/getbutler.sh
-RUN bash /opt/butler/getbutler.sh
-RUN /opt/butler/bin/butler -V
-ENV PATH="/opt/butler/bin:${PATH}"
-
 # ---- Android SDK (как в шаблоне) ----
 ENV ANDROID_HOME="/usr/lib/android-sdk"
 RUN wget -O /tmp/commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-7583922_latest.zip \
