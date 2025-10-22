@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     fontconfig \
     curl \
+    wine64 \
+    osslsigncode \
     && rm -rf /var/lib/apt/lists/*
 
 ARG SPINE_VERSION="4.2"
@@ -54,8 +56,25 @@ RUN set -eux; \
     echo "Installed templates to: $templates_dir"; \
     ls -la "$templates_dir" || true
 
+RUN wget https://github.com/electron/rcedit/releases/download/v2.0.0/rcedit-x64.exe -O /opt/rcedit.exe
+RUN echo 'export/windows/rcedit = "/opt/rcedit.exe"' >> ~/.config/godot/editor_settings-4.tres
+RUN echo 'export/windows/wine = "/usr/bin/wine64-stable"' >> ~/.config/godot/editor_settings-4.tres
+
+RUN mkdir -p /opt/butler
+RUN wget -O /opt/butler/butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+RUN unzip /opt/butler/butler.zip -d /opt/butler
+RUN rm -rf /opt/butler/butler.zip
+RUN ls /opt/butler
+RUN chmod +x /opt/butler/butler
+RUN /opt/butler/butler -V
+
+RUN echo "convert \$1 -define icon:auto-resize=256,128,64,48,32,16 /tmp/icon.ico && wine /opt/rcedit/rcedit-x64.exe \$2 --set-icon /tmp/icon.ico" > /opt/rcedit/bin/set-icon
+RUN chmod +x /opt/rcedit/bin/set-icon
+
 RUN curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh \
   | sh -s -- -b /usr/local/bin
+
+
 
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
