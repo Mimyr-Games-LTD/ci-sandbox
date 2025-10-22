@@ -14,7 +14,7 @@ on:
       project_path:
         description: "Path to folder with project.godot ('.' if root)"
         required: true
-        default: "test-project"
+        default: "."
 
 permissions:
   contents: write
